@@ -19,9 +19,10 @@ mkdir -p $outdir/$file_id/raw-i0
 tail -n +2 $alignfile |
 while read line
 do
-	wordid=`echo $line | cut -d " " -f 1`
-	start=`echo $line | cut -d " " -f 2`
-	end=`echo $line | cut -d " " -f 3`
+	#CAREFUL HERE. CHANGED ALIGNFILE STRUCTURE
+	wordid=`echo $line | cut -d " " -f 8`
+	start=`echo $line | cut -d " " -f 6`
+	end=`echo $line | cut -d " " -f 7`
 
 	outfilename=$wordid
 
@@ -34,11 +35,16 @@ do
 	#echo avconv -i $wavfile -ss $start -t $duration -ac 1 -ar 16000 $wavsegmentdir/$wordid.wav
 	
 	#EXTRACT RAW FEATURES USING PRAAT
-	praat lib/laic/extract-feats.praat $wavfile $outfilename $start $end $outdir/$file_id
+	praat extract-feats.praat $wavfile $outfilename $start $end $outdir/$file_id
 	
 done  
 
 #Merge segmented f0 and intensity contours into one file USING R
-#RScript lib/laic/get-pros-norm.r $file_id f0 $outdir/$file_id/raw-f0/ $outdir/$file_id/ $alignfile
+RScript get-pros-norm.r $file_id f0 $outdir/$file_id/raw-f0/ $outdir/$file_id/ $alignfile
+RScript get-pros-norm.r $file_id i0 $outdir/$file_id/raw-i0/ $outdir/$file_id/ $alignfile
+
+#extract normalized prosody features
+RScript get-pros-window.r $file_id f0 $outdir/$file_id $alignfile
+RScript get-pros-window.r $file_id i0 $outdir/$file_id $alignfile
 
 #exit 0
