@@ -97,11 +97,7 @@ def readTedDataToMemory(file_wordalign, file_wordaggs_f0, file_wordaggs_i0):
 			if first_line:
 				first_line = 0
 				continue
-			if not row[0] == "-":
-				try:
-					word_data_aligned_dic[row[7]] += [[row[5], row[6], row[1], row[3], row[4], row[19]]] #word.id (detailed), sent.id, word.stripped, starttime, endtime, punctuation
-				except Exception, e:
-					word_data_aligned_dic[row[7]] = [[row[5], row[6], row[1], row[3], row[4], row[19]]]
+			word_data_aligned_dic[row[7]] = [[row[5], row[6], row[9]]] #starttime, endtime, word
 
 	return [word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_data_aligned_dic]
 
@@ -139,17 +135,15 @@ def structureData(word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_d
 					     'features_i0':[0], 'mean.f0_jump_from_prev':0.0, 'mean.i0_jump_from_prev':0.0,
 					     'range.f0':0.0, 'range.i0':0.0, 'word_dur':0.0,
 					     'speech.rate.syll': 0.0, 'speech.rate.phon':0.0}
-			wordEntry['word.id.simple'] = key
-			wordEntry['word.id'] = word_data[0]
-			wordEntry['sent.id'] = word_data[1]
+			wordEntry['word.id'] = key
 			word_stripped = word_data[2]
 
-			if not word_data[3] == "NA": 
-				wordEntry['starttime'] = float(word_data[3])
+			if not word_data[0] == "NA": 
+				wordEntry['starttime'] = float(word_data[0])
 			else:
 				wordEntry['starttime'] = -1
-			if not word_data[4] == "NA": 
-				wordEntry['endtime'] = float(word_data[4])
+			if not word_data[1] == "NA": 
+				wordEntry['endtime'] = float(word_data[1])
 			else:
 				wordEntry['endtime'] = -1
 
@@ -162,16 +156,8 @@ def structureData(word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_d
 			word_stripped = word_stripped[re.search(r"\w", word_stripped).start():]
 			word_stripped = word_stripped[::-1]
 
+			wordEntry['word'] += word_stripped
 			wordEntry['word.stripped'] += word_stripped
-			
-
-			#skip speaker turn information which is denoted as {xx} in word.txt
-			if re.search(r"{|}", wordEntry['word']):
-				continue
-
-			#sometimes word file has the word transcription wrong. take care of those cases
-			if re.search(r"\w", wordEntry['word']) == None:
-				wordEntry['word'] = wordEntry['word.stripped']
 
 			try:
 				wordEntry['features_f0'] = word_id_to_f0_features_dic[wordEntry['word.id']]
@@ -206,7 +192,7 @@ def structureData(word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_d
 			# 	count_speech_rate_syll += 1
 
 			#speech rate with respect to phonemes (no of characters)
-			no_of_characters = len(re.sub('[^a-zA-Z]','',wordEntry['word.stripped']))
+			no_of_characters = len(re.sub('[^a-zA-Z]','',wordEntry['word']))
 			speech_rate_phon = wordEntry['word_dur'] / no_of_characters
 			wordEntry['speech.rate.phon'] = float(FLOAT_FORMATTING.format(speech_rate_phon))
 
@@ -232,31 +218,31 @@ def structureData(word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_d
 			i0_range = wordEntry['features_i0'][2] - wordEntry['features_i0'][3]
 			wordEntry['range.i0'] = float(FLOAT_FORMATTING.format(i0_range))
 
-			#check punctuation marks
-			word_being_processed = wordEntry['word']
-			punc_after = ""
-			punc_before = ""
+			# #check punctuation marks
+			# word_being_processed = wordEntry['word']
+			# punc_after = ""
+			# punc_before = ""
 
-			#check beginning
-			if re.search(r"^\W", word_being_processed) and word_index == 0:
-				punc = word_being_processed[:re.search(r"\w", word_being_processed).start()]
-				punc_before += punc
-				word_being_processed = word_being_processed[re.search(r"\w", word_being_processed).start():]
+			# #check beginning
+			# if re.search(r"^\W", word_being_processed) and word_index == 0:
+			# 	punc = word_being_processed[:re.search(r"\w", word_being_processed).start()]
+			# 	punc_before += punc
+			# 	word_being_processed = word_being_processed[re.search(r"\w", word_being_processed).start():]
 
-			#check end again (issue with quotations)
-			word_reversed = word_being_processed[::-1]
-			if re.search(r"^\W",word_reversed) and word_index == len(word_data_aligned_dic[key]) - 1:
-				punc = word_reversed[:re.search(r"\w", word_reversed).start()][::-1]
-				punc_after = punc + punc_after
-				word_being_processed = word_reversed[re.search(r"\w", word_reversed).start():][::-1]
+			# #check end again (issue with quotations)
+			# word_reversed = word_being_processed[::-1]
+			# if re.search(r"^\W",word_reversed) and word_index == len(word_data_aligned_dic[key]) - 1:
+			# 	punc = word_reversed[:re.search(r"\w", word_reversed).start()][::-1]
+			# 	punc_after = punc + punc_after
+			# 	word_being_processed = word_reversed[re.search(r"\w", word_reversed).start():][::-1]
 
-			wordEntry['punc_before'] = punc_before
-			wordEntry['punc_after'] = punc_after
+			# wordEntry['punc_before'] = punc_before
+			# wordEntry['punc_after'] = punc_after
 
-			total_punc_before = prev_wordEntry['punc_after'] + wordEntry['punc_before']
+			# total_punc_before = prev_wordEntry['punc_after'] + wordEntry['punc_before']
 
-			wordEntry['total_punc_before'] = total_punc_before
-			wordEntry['minimal_punc_before'] = puncProper(total_punc_before)
+			# wordEntry['total_punc_before'] = total_punc_before
+			# wordEntry['minimal_punc_before'] = puncProper(total_punc_before)
 
 			structured_data += [wordEntry]
 			prev_wordEntry = wordEntry
@@ -342,7 +328,7 @@ def wordDataToDictionary(structured_word_data, avg_speech_rate):
 	semitone_bins = create_semitone_bins()
 
 	for word_datum in structured_word_data:
-		actualword_seq += [word_datum['word.stripped']]
+		actualword_seq += [word_datum['word']]
 		word_dur_seq += [word_datum['word_dur']]
 		punc_seq += [word_datum['minimal_punc_before']]
 		punc_reduced_seq += [reducePunc(word_datum['minimal_punc_before'])]
@@ -418,6 +404,7 @@ def main(options):
 
 	[word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_data_aligned_dic] = readTedDataToMemory(options.file_wordalign, options.file_wordaggs_f0, options.file_wordaggs_i0)
 	[structured_word_data, avg_speech_rate] = structureData(word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_data_aligned_dic)
+
 	talk_data = wordDataToDictionary(structured_word_data, avg_speech_rate)
 
 	word_data_to_pickle(talk_data, options.file_output)
@@ -435,5 +422,4 @@ if __name__ == "__main__":
 	parser.add_option("-o", "--out", dest="file_output", default=None, help="outputfile", type="string")
 
 	(options, args) = parser.parse_args()
-	print(options)
-	#main(options)
+	main(options)
