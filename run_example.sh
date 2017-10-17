@@ -8,7 +8,7 @@ alignfile=$curr_dir/sampledata/AlGore2006.0003.align
 output_dir=$curr_dir/out
 
 cd lib/laic
-echo ./extract-prosodic-feats.sh $wavfile $alignfile $output_dir
+./extract-prosodic-feats.sh $wavfile $alignfile $output_dir
 
 cd $curr_dir
 
