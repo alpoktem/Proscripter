@@ -5,7 +5,6 @@ from optparse import OptionParser
 import os
 import sys
 import re
-from pandas import DataFrame, read_csv
 import csv
 import cPickle
 from random import randint
@@ -16,14 +15,7 @@ csv.field_size_limit(1000000000000)
 
 features_f0_header = 'mean.normF0\tsd.normF0\tmax.normF0\tmin.normF0\tmedian.normF0\tq1.normF0\tq2.5.normF0\tq5.normF0\tq25.normF0\tq75.normF0\tq95.normF0\tq97.5.normF0\tq99.normF0\tslope.normF0\tintercept.normF0\tmean.normF0.slope\tsd.normF0.slope\tmax.normF0.slope\tmin.normF0.slope\tmedian.normF0.slope\tq1.normF0.slope\tq2.5.normF0.slope\tq5.normF0.slope\tq25.normF0.slope\tq75.normF0.slope\tq95.normF0.slope\tq97.5.normF0.slope\tq99.normF0.slope\tslope.normF0.slope\tintercept.normF0.slope'
 features_i0_header = 'mean.normI0\tsd.normI0\tmax.normI0\tmin.normI0\tmedian.normI0\tq1.normI0\tq2.5.normI0\tq5.normI0\tq25.normI0\tq75.normI0\tq95.normI0\tq97.5.normI0\tq99.normI0\tslope.normI0\tintercept.normI0\tmean.normI0.slope\tsd.normI0.slope\tmax.normI0.slope\tmin.normI0.slope\tmedian.normI0.slope\tq1.normI0.slope\tq2.5.normI0.slope\tq5.normI0.slope\tq25.normI0.slope\tq75.normI0.slope\tq95.normI0.slope\tq97.5.normI0.slope\tq99.normI0.slope\tslope.normI0.slope\tintercept.normI0.slope'
-	
-def puncProper(punc):
-	if punc in INV_PUNCTUATION_CODES.keys():
-		return punc
-	else:
-		return puncEstimate(punc)
 
-#PUNC_DICT = [",", '.', '?', '!',':', ';', '-', '']
 SPACE = "_"
 PUNCTUATION_VOCABULARY = {0:SPACE, 1:',', 2:'.', 3:'?', 4:'!', 5:'-', 6:';', 7:':'}
 INV_PUNCTUATION_CODES = {SPACE:0, ',':1, '.':2, '?':3, '!':4, '-':5, ';':6, ':':7, '':0}
@@ -32,7 +24,13 @@ REDUCED_INV_PUNCTUATION_CODES = {SPACE:0, ',':1, '.':2, '?':3, '':0}
 EOS_PUNCTUATION_CODES = [2,3,4,5,6,7]
 
 FLOAT_FORMATTING="{0:.4f}"
+END_TOKEN = "<END>" 
 
+def puncProper(punc):
+	if punc in INV_PUNCTUATION_CODES.keys():
+		return punc
+	else:
+		return puncEstimate(punc)
 
 def reducePuncCode(puncCode):
 	if puncCode in [4, 5, 6, 7]: #period
@@ -369,10 +367,10 @@ def wordDataToDictionary(structured_word_data, avg_speech_rate):
 	}
 
 	talk_data = {  'word': actualword_seq,
-				   'word.duration': word_dur_seq,
+				   'word.duration': word_dur_seq ,
 				   #'speech.rate.syll' : speech_rate_syll_seq,
 				   'speech.rate.phon': speech_rate_phon_seq,
-				   'speech.rate.norm': speech_rate_normalized_seq,
+				   'speech.rate.norm': speech_rate_normalized_seq ,
 				   'punctuation': punc_seq,
 				   'punctuation.reduced': punc_reduced_seq,
 				   'pause': pause_before_seq,
@@ -383,9 +381,9 @@ def wordDataToDictionary(structured_word_data, avg_speech_rate):
 				   'slope.f0': slopef0_seq,
 				   'sd.f0': sdf0_seq,
 				   'jump.f0': jumpf0_seq,
-				   'jump.i0': jumpi0_seq,
+				   'jump.i0': jumpi0_seq ,
 				   'range.f0': rangef0_seq,
-				   'range.i0': rangei0_seq,
+				   'range.i0': rangei0_seq ,
 				   'mean.f0.id': meanf0_id_seq,
 				   'mean.i0.id': meani0_id_seq,
 				   'range.f0.id': rangef0_id_seq,
@@ -422,4 +420,7 @@ if __name__ == "__main__":
 	parser.add_option("-o", "--out", dest="file_output", default=None, help="outputfile", type="string")
 
 	(options, args) = parser.parse_args()
+
+	print("=====Proscripter=====")
 	main(options)
+	print("Proscripted.")

@@ -4,7 +4,6 @@ curr_dir=`pwd`
 file_id=AlGore2006.0003
 wavfile=$curr_dir/sampledata/AlGore2006.0003.wav
 alignfile=$curr_dir/sampledata/AlGore2006.0003.align
-#alignfile=/Users/alp/phdCloud/playground/krisPunk/sampledata/ay.align
 output_dir=$curr_dir/out
 
 cd lib/laic

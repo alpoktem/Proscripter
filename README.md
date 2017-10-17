@@ -1,23 +1,30 @@
-Proscripter - Creates acoustically enhanced speech transcripts from audio/transcript pair.
+# Proscripter
 
-REQUIREMENTS
-Praat (should be runnable from command line as "praat" or binary should be linked in lib/laic/extract-prosodic-feats.sh)
-R with packages plyr, data.table, (geometry, magic, abind, mFilter)
-Python (ver 2.7) with packages optparse, pandas, csv, cPickle, numpy, collections
+Creates acoustically enhanced speech transcripts from audio/transcript pair.
 
-SAMPLE DATA
-A sample recording is provided under directory [sampledata] together with its alignment file
+## Requirements
+- Praat (should be runnable from command line as "praat" or binary should be linked in `lib/laic/extract-prosodic-feats.sh`)
+- R with packages: 
+	- plyr
+	- data.table
+	- geometry
+	- magic
+	- abind
+	- mFilter 
 
-RUN
+- `Python 2.7` with packages: 
+	- numpy
+
+## Sample Data
+A sample recording is provided under directory `sampledata` together with its alignment file
+
+## Run
 To extract prosodic features of an aligned soundfile:
-lib/laic/extract-prosodic-feats.sh <wav-file> <alignment-file> <output-directory>
+`lib/laic/extract-prosodic-feats.sh <wav-file> <alignment-file> <output-directory>`
 
-This script collects f0 and intensity features under aggs files 
+This script collects fundamental frequency (f0)  and intensity features under aggs files 
 
 To convert f0/intensity data to Proscript format:
-python lib/etc/proscripter.py -l <alignment-file> -f <f0_aggs_file> -i <$i0_aggs_file> -o <output-proscript-file> -c <output-csv-file>
+`python src/proscripter.py -l <alignment-file> -f <f0-aggs-file> -i <i0-aggs-file> -o <output-proscript-file> -c <output-csv-file>`
 
-
-
-
-
+A runnable bash script is in `run_example.sh`
