@@ -2,6 +2,8 @@
 
 Creates acoustically enhanced speech transcripts from audio/transcript pair.
 
+This library is an extension to the work by @laic (https://github.com/laic/prosody). 
+
 ## Requirements
 - Praat (should be runnable from command line as "praat" or binary should be linked in `lib/laic/extract-prosodic-feats.sh`)
 - R with packages: 
