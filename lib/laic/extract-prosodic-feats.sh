@@ -40,11 +40,11 @@ do
 done  
 
 #Merge segmented f0 and intensity contours into one file USING R
-RScript get-pros-norm.r $file_id f0 $outdir/$file_id/raw-f0/ $outdir/$file_id/ $alignfile
-RScript get-pros-norm.r $file_id i0 $outdir/$file_id/raw-i0/ $outdir/$file_id/ $alignfile
+Rscript get-pros-norm.r $file_id f0 $outdir/$file_id/raw-f0/ $outdir/$file_id/ $alignfile
+Rscript get-pros-norm.r $file_id i0 $outdir/$file_id/raw-i0/ $outdir/$file_id/ $alignfile
 
 #extract normalized prosody features
-RScript get-pros-window.r $file_id f0 $outdir/$file_id $alignfile
-RScript get-pros-window.r $file_id i0 $outdir/$file_id $alignfile
+Rscript get-pros-window.r $file_id f0 $outdir/$file_id $alignfile
+Rscript get-pros-window.r $file_id i0 $outdir/$file_id $alignfile
 
 #exit 0
