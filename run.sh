@@ -1,28 +1,24 @@
-curr_dir=`pwd`
-
-#to extract raw f0/i0 features:
-
-
-
-wavfile=$1
-alignfile=$2
-output_dir=$3
-
 get_abs_filename() {
   # $1 : relative filename
   echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 }
 
+curr_dir=`pwd`
+wavfile=`get_abs_filename $1`
+alignfile=`get_abs_filename $2`
+output_dir=`get_abs_filename $3`
+
 wavfilename=$(basename "$wavfile")
 file_id="${wavfilename%.*}"
 
-wavfile=`get_abs_filename $wavfile`
-alignfile=`get_abs_filename $2`
+if [ -z "$output_dir" ]
+then
+      echo "Creating output directory"
+fi
 
 
 cd lib/laic
 ./extract-prosodic-feats.sh $wavfile $alignfile $output_dir
-
 cd $curr_dir
 
 #Convert aggs features into Proscript format
