@@ -16,7 +16,6 @@ then
       echo "Creating output directory"
 fi
 
-
 cd lib/laic
 ./extract-prosodic-feats.sh $wavfile $alignfile $output_dir
 cd $curr_dir

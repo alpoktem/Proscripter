@@ -13,6 +13,7 @@ This library is an extension to the work by @laic (https://github.com/laic/proso
 	- magic
 	- abind
 	- mFilter 
+	- polynom
 
 - `Python 2.7` with packages: 
 	- numpy
@@ -29,4 +30,5 @@ This script collects fundamental frequency (f0)  and intensity features under ag
 To convert f0/intensity data to Proscript format:
 `python src/proscripter.py -l <alignment-file> -f <f0-aggs-file> -i <i0-aggs-file> -o <output-proscript-file> -c <output-csv-file>`
 
-A runnable bash script is in `run_example.sh`
+Both processes are combined in `run.sh`:
+`./run.sh <wav-file> <alignment-file> <output-directory>`
