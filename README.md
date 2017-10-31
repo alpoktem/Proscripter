@@ -25,10 +25,12 @@ A sample recording is provided under directory `sampledata` together with its al
 To extract prosodic features of an aligned soundfile:
 `lib/laic/extract-prosodic-feats.sh <wav-file> <alignment-file> <output-directory>`
 
-This script collects fundamental frequency (f0)  and intensity features under aggs files 
+This script collects fundamental frequency (f0)  and intensity measurements under the specified output directory
 
 To convert f0/intensity data to Proscript format:
-`python src/proscripter.py -l <alignment-file> -f <f0-aggs-file> -i <i0-aggs-file> -o <output-proscript-file> -c <output-csv-file>`
+`python src/proscripter.py -d <prosodic-feats-directory> -l <alignment-file>`
+
+where `<prosodic-feats-directory>` is the output directory of the previous call.
 
 Both processes are combined in `run.sh`:
 `./run.sh <wav-file> <alignment-file> <output-directory>`

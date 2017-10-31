@@ -25,6 +25,51 @@ EOS_PUNCTUATION_CODES = [2,3,4,5,6,7]
 FLOAT_FORMATTING="{0:.4f}"
 END_TOKEN = "<END>" 
 
+class Word:
+	def __init__(self):
+		self.word = None
+
+		self.pause_before = -1.0  			#seconds
+		self.pause_after = -1.0				#seconds
+		self.duration = -1.0				#seconds
+		self.speech_rate_phon = -1			#seconds
+		self.speech_rate_normalized = -1
+		self.f0_contour = -1
+		self.i0_contour = -1
+		self.contour_xaxis = -1 
+		self.f0_mean = -1.0
+		self.i0_mean = -1.0
+		self.f0_slope = -1.0
+		self.i0_slope = -1.0
+		self.f0_median = -1.0
+		self.i0_median = -1.0
+		self.f0_sd = -1.0
+		self.i0_sd = -1.0
+		self.f0_range = -1.0
+		self.i0_range = -1.0
+		
+		self.pos = None
+		self.punctuation_before = None
+		self.punctuation_after = None
+
+		self.end_time = -1.0
+		self.start_time = -1.0
+
+class Proscript:
+    def __init__(self):
+    	self.wordlist = []
+
+    def addWord(self, word):
+    	self.wordlist.append(word)
+
+    def getLastWord(self):
+    	if self.getLength() > 0:
+    		return self.wordlist[-1]
+    	else:
+    		return None
+
+    def getLength(self):
+    	return len(self.wordlist)
 
 def puncProper(punc):
 	if punc in INV_PUNCTUATION_CODES.keys():
@@ -83,7 +128,7 @@ def readTedDataToMemory(file_wordalign, file_wordaggs_f0, file_wordaggs_i0, dir_
 			if at_header_line:
 				at_header_line = 0
 			else:
-				word_id_to_f0_features_dic[row[0]] = row[6:36]
+				word_id_to_f0_features_dic[row[0]] = featureVectorToFloat(row[6:36])
 
 	#read wordaggs_i0 file to a dictionary
 	word_id_to_i0_features_dic = {}
@@ -94,7 +139,7 @@ def readTedDataToMemory(file_wordalign, file_wordaggs_f0, file_wordaggs_i0, dir_
 			if at_header_line:
 				at_header_line = 0
 			else:
-				word_id_to_i0_features_dic[row[0]] = row[6:36]
+				word_id_to_i0_features_dic[row[0]] = featureVectorToFloat(row[6:36])  #acoustic features
 
 	#read aligned word file to a dictionary (word.align)
 	word_data_aligned_dic = OrderedDict()
@@ -105,10 +150,51 @@ def readTedDataToMemory(file_wordalign, file_wordaggs_f0, file_wordaggs_i0, dir_
 			if first_line:
 				first_line = 0
 				continue
-			word_data_aligned_dic[row[7]] = [[row[5], row[6], row[9]]] #starttime, endtime, word
+			word_data_aligned_dic[row[7]] = [row[5], row[6], row[9]] #starttime, endtime, word
 
+	#if raw folders are given read files under for f0/i0 contours
+	word_id_to_raw_f0_features_dic = {}
+	for word_id in word_id_to_f0_features_dic.keys():
+		file_f0_vals = os.path.join(dir_raw_f0, "%s.PitchTier"%word_id)
+		word_id_to_raw_f0_features_dic[word_id] = []
+		if os.path.exists(file_f0_vals):
+			with open(file_f0_vals, 'rt') as f:
+				reader = csv.reader(f, delimiter='\t', quotechar=None)
+				duration = 1
+				for row in reader:
+					if len(row) == 1:
+						if len(row[0].split()) == 3:	#this row has the duration information
+							duration = float(row[0].split()[1])
+					elif len(row) == 2:	#only rows with two values carry pitch information. rest is metadata
+						time_percentage = int((float(row[0]) / duration) * 100)
+						f0_val = [time_percentage, round(float(row[1]), 3)]
+						word_id_to_raw_f0_features_dic[word_id].append(f0_val)
 
-	return [word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_data_aligned_dic]
+	#if raw folders are given read files under for f0/i0 contours
+	word_id_to_raw_i0_features_dic = {}
+	for word_id in word_id_to_i0_features_dic.keys():
+		file_i0_vals = os.path.join(dir_raw_i0, "%s.IntensityTier"%word_id)
+		word_id_to_raw_i0_features_dic[word_id] = []
+		if os.path.exists(file_i0_vals):
+			with open(file_i0_vals, 'rt') as f:
+				reader = csv.reader(f, delimiter='\t', quotechar=None)
+				line_type = 0	#0 - meta, 1 - time info, 2 - intensity value
+				row_count = 0
+				for row in reader:
+					row_count += 1
+					if line_type == 1:
+						time_percentage = int((float(row[0]) / duration) * 100)
+						line_type = 2
+					elif line_type == 2:
+						word_id_to_raw_i0_features_dic[word_id].append( [time_percentage, round(float(row[0]), 3)] )
+						line_type = 1
+					else:
+						if row_count == 5:
+							duration = round(float(row[0]), 2)
+						elif row_count == 6:
+							line_type = 1					
+
+	return [word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_data_aligned_dic, word_id_to_raw_f0_features_dic, word_id_to_raw_i0_features_dic]
 
 def featureVectorToFloat(featureVector):
 	features_fixed = [0.0] * len(featureVector)
@@ -120,144 +206,73 @@ def featureVectorToFloat(featureVector):
 	return features_fixed
 
 def structureData(word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_data_aligned_dic, word_id_to_raw_f0_features_dic=None, word_id_to_raw_i0_features_dic=None):
-	structured_data = []
+	proscript = Proscript()
 	sum_speech_rate_phon = 0.0
 	sum_speech_rate_syll = 0.0
 	count_speech_rate_syll = 0
 	count_speech_rate_phon = 0
 
-	prev_wordEntry = {'starttime':0.0, 'endtime':0.0, 'punc_before':"", 'punc_after':"", 
-					  'features_f0':[0],
-					  'features_i0':[0]}
-	for key in word_data_aligned_dic:
-		#case of it's that's
-		if len(word_data_aligned_dic[key]) == 2 and re.search(r"^{", word_data_aligned_dic[key][1][2]):
-			word_data_aligned_dic[key][0][2] += "'" + word_data_aligned_dic[key][1][2][1:]
-			word_data_aligned_dic[key][0][4] = word_data_aligned_dic[key][1][4]
-			del word_data_aligned_dic[key][1]
+	for word_id, word_data in word_data_aligned_dic.items():
+		word = Word()
 
-		for word_index, word_data in enumerate(word_data_aligned_dic[key]):
-			wordEntry = {'sent.id':"", 'word.id':"", 'word.id.simple':"", 'word':"", 
-					     'word.stripped':"", 'utt_pos':"", 'punc_before':"", 'punc_after':"", 'total_punc_before':"",
-					     'minimal_punc_before': "", 'starttime':0.0, 'endtime':0.0, 'starttime.approx':0, 
-					     'endtime.approx':0, 'features_f0':[0], 'pause_before_dur':0.0, 
-					     'features_i0':[0], 'mean.f0_jump_from_prev':0.0, 'mean.i0_jump_from_prev':0.0,
-					     'range.f0':0.0, 'range.i0':0.0, 'word_dur':0.0,
-					     'speech.rate.syll': 0.0, 'speech.rate.phon':0.0}
-			wordEntry['word.id'] = key
-			word_stripped = word_data[2]
+		print(word_id)
+		print(word_data)
 
-			if not word_data[0] == "NA": 
-				wordEntry['starttime'] = float(word_data[0])
-			else:
-				wordEntry['starttime'] = -1
-			if not word_data[1] == "NA": 
-				wordEntry['endtime'] = float(word_data[1])
-			else:
-				wordEntry['endtime'] = -1
+		if not word_data[0] == "NA": 
+			word.start_time = float(word_data[0])
+		if not word_data[1] == "NA": 
+			word.end_time = float(word_data[1])
 
-			if re.search(r"\w", word_stripped) == None:
-				continue
+		word_stripped = word_data[2]
+		word_stripped = word_stripped[re.search(r"\w", word_stripped).start():]
+		word_stripped = word_stripped[::-1]
+		word_stripped = word_stripped[re.search(r"\w", word_stripped).start():]
+		word_stripped = word_stripped[::-1]
 
-			#strip word from non-word stuff at the beginning and end
-			word_stripped = word_stripped[re.search(r"\w", word_stripped).start():]
-			word_stripped = word_stripped[::-1]
-			word_stripped = word_stripped[re.search(r"\w", word_stripped).start():]
-			word_stripped = word_stripped[::-1]
+		word.word = word_stripped
 
-			wordEntry['word'] += word_stripped
-			wordEntry['word.stripped'] += word_stripped
+		#pause values
+		if not word.start_time == -1 and not proscript.getLastWord() == None and not proscript.getLastWord().end_time == -1:
+			diff = word.start_time - proscript.getLastWord().end_time
+		else: 
+			diff = 0.0
+		word.pause_before = float(FLOAT_FORMATTING.format(diff))
 
-			try:
-				wordEntry['features_f0'] = word_id_to_f0_features_dic[wordEntry['word.id']]
-			except Exception as e:
-				wordEntry['features_f0'] = [0] * 29
-			
-			try:
-				wordEntry['features_i0'] = word_id_to_i0_features_dic[wordEntry['word.id']]
-			except Exception as e:
-				wordEntry['features_i0'] = [0] * 29
-			
-			#pause values
-			if not wordEntry['starttime'] == -1 and not prev_wordEntry['endtime'] == -1:
-				diff = wordEntry['starttime'] - prev_wordEntry['endtime']
-			else:
-				diff = 0.0
-			wordEntry['pause_before_dur'] = float(FLOAT_FORMATTING.format(diff))
+		#word duration
+		if not word.start_time == -1 and not word.end_time == -1:
+			diff = word.end_time - word.start_time
+		else:
+			diff = 0.0
+		word.duration = float(FLOAT_FORMATTING.format(diff))
 
-			#word duration
-			if not wordEntry['starttime'] == -1 and not prev_wordEntry['endtime'] == -1:
-				diff = wordEntry['endtime'] - wordEntry['starttime']
-			else:
-				diff = 0.0
-			wordEntry['word_dur'] = float(FLOAT_FORMATTING.format(diff))
+		#speech rate with respect to phonemes (no of characters)
+		no_of_characters = len(re.sub('[^a-zA-Z]','', word.word))
+		speech_rate_phon = word.duration / no_of_characters
+		word.speech_rate_phon = float(FLOAT_FORMATTING.format(speech_rate_phon))
 
-			#speech rate with respect to syllables
-			# no_syllables = float(tools.sylco(wordEntry['word.stripped']))
-			# if not no_syllables == 0: wordEntry['speech.rate.syll'] = float(FLOAT_FORMATTING.format(wordEntry['word_dur'] / no_syllables))
+		if word.speech_rate_phon > 0:
+			sum_speech_rate_phon += word.speech_rate_phon
+			count_speech_rate_phon += 1
 
-			# if not wordEntry['speech.rate.syll'] == 0:
-			# 	sum_speech_rate_syll += wordEntry['speech.rate.syll']
-			# 	count_speech_rate_syll += 1
+		#acoustic features
+		word.f0_mean = float(word_id_to_f0_features_dic[word_id][0])
+		word.i0_mean = float(word_id_to_i0_features_dic[word_id][0])
+		word.f0_slope = float(word_id_to_f0_features_dic[word_id][14])
+		word.i0_slope = float(word_id_to_i0_features_dic[word_id][14])
+		word.f0_sd = float(word_id_to_f0_features_dic[word_id][1])
+		word.i0_sd = float(word_id_to_i0_features_dic[word_id][1])
+		word.f0_range = float(word_id_to_f0_features_dic[word_id][2]) - float(word_id_to_f0_features_dic[word_id][3])
+		word.i0_range = float(word_id_to_i0_features_dic[word_id][2]) - float(word_id_to_i0_features_dic[word_id][3])
 
-			#speech rate with respect to phonemes (no of characters)
-			no_of_characters = len(re.sub('[^a-zA-Z]','',wordEntry['word']))
-			speech_rate_phon = wordEntry['word_dur'] / no_of_characters
-			wordEntry['speech.rate.phon'] = float(FLOAT_FORMATTING.format(speech_rate_phon))
-
-			if wordEntry['speech.rate.phon'] > 0:
-				sum_speech_rate_phon += wordEntry['speech.rate.phon']
-				count_speech_rate_phon += 1
-
-			#convert i0 and f0 feature vectors to float vectors
-			wordEntry['features_f0'] = featureVectorToFloat(wordEntry['features_f0'])
-			wordEntry['features_i0'] = featureVectorToFloat(wordEntry['features_i0'])
-
-			#other prosodic features
-			#jump.f0 = mean.f0 of the current word - mean.f0 of the previous word
-			f0_jump = wordEntry['features_f0'][0] - prev_wordEntry['features_f0'][0]
-			wordEntry['mean.f0_jump_from_prev'] = float(FLOAT_FORMATTING.format(f0_jump))
-			#jump.i0 = mean.i0 of the current word - mean.i0 of the previous word
-			i0_jump = wordEntry['features_i0'][0] - prev_wordEntry['features_i0'][0]
-			wordEntry['mean.i0_jump_from_prev'] = float(FLOAT_FORMATTING.format(i0_jump))
-			#range.f0 = max.f0 - min.f0
-			f0_range = wordEntry['features_f0'][2] - wordEntry['features_f0'][3]
-			wordEntry['range.f0'] = float(FLOAT_FORMATTING.format(f0_range))
-			#range.i0 = max.i0 - min.i0
-			i0_range = wordEntry['features_i0'][2] - wordEntry['features_i0'][3]
-			wordEntry['range.i0'] = float(FLOAT_FORMATTING.format(i0_range))
-
-			# #check punctuation marks
-			# word_being_processed = wordEntry['word']
-			# punc_after = ""
-			# punc_before = ""
-
-			# #check beginning
-			# if re.search(r"^\W", word_being_processed) and word_index == 0:
-			# 	punc = word_being_processed[:re.search(r"\w", word_being_processed).start()]
-			# 	punc_before += punc
-			# 	word_being_processed = word_being_processed[re.search(r"\w", word_being_processed).start():]
-
-			# #check end again (issue with quotations)
-			# word_reversed = word_being_processed[::-1]
-			# if re.search(r"^\W",word_reversed) and word_index == len(word_data_aligned_dic[key]) - 1:
-			# 	punc = word_reversed[:re.search(r"\w", word_reversed).start()][::-1]
-			# 	punc_after = punc + punc_after
-			# 	word_being_processed = word_reversed[re.search(r"\w", word_reversed).start():][::-1]
-
-			# wordEntry['punc_before'] = punc_before
-			# wordEntry['punc_after'] = punc_after
-
-			# total_punc_before = prev_wordEntry['punc_after'] + wordEntry['punc_before']
-
-			# wordEntry['total_punc_before'] = total_punc_before
-			# wordEntry['minimal_punc_before'] = puncProper(total_punc_before)
-
-			structured_data += [wordEntry]
-			prev_wordEntry = wordEntry
-
-	avg_speech_rate = sum_speech_rate_phon / count_speech_rate_phon
-	return structured_data, avg_speech_rate
+		#contours
+		word.f0_contour = word_id_to_raw_f0_features_dic[word_id]
+		word.i0_contour = word_id_to_raw_i0_features_dic[word_id]
+		
+		#punctuation
+		#...
+		proscript.addWord(word)
+	
+	return proscript
 
 def word_data_to_pickle(talk_data, output_pickle_file):
 	with open(output_pickle_file, 'wb') as f:
@@ -418,24 +433,21 @@ def main(options):
 	checkFile(options.file_wordalign, "file_wordalign")
 
 	file_wordaggs_f0 = findAggsFile(options.dir_working, "f0")
-	print(file_wordaggs_f0)
-
 	file_wordaggs_i0 = findAggsFile(options.dir_working, "i0")
-	print(file_wordaggs_i0)
 
 	dir_raw_f0 = os.path.join(options.dir_working, "raw-f0")
 	dir_raw_i0 = os.path.join(options.dir_working, "raw-i0")
 
-	[word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_data_aligned_dic] = readTedDataToMemory(options.file_wordalign, file_wordaggs_f0, file_wordaggs_i0, dir_raw_f0, dir_raw_i0)
-	[structured_word_data, avg_speech_rate] = structureData(word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_data_aligned_dic)
+	[word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_data_aligned_dic, word_id_to_raw_f0_features_dic, word_id_to_raw_i0_features_dic] = readTedDataToMemory(options.file_wordalign, file_wordaggs_f0, file_wordaggs_i0, dir_raw_f0, dir_raw_i0)
+	proscript = structureData(word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_data_aligned_dic, word_id_to_raw_f0_features_dic, word_id_to_raw_i0_features_dic)
 
-	talk_data = wordDataToDictionary(structured_word_data, avg_speech_rate)
+	#talk_data = wordDataToDictionary(structured_word_data, avg_speech_rate)
 
-	dir_proscript = os.path.join(options.dir_working, "proscript")
-	if not os.path.exists(dir_proscript):
-		os.makedirs(dir_proscript)
-	word_data_to_pickle(talk_data, os.path.join(dir_proscript, "%s.pcl"%options.id_file))
-	word_data_to_csv(talk_data, os.path.join(dir_proscript, "%s.csv"%options.id_file))
+	#dir_proscript = os.path.join(options.dir_working, "proscript")
+	#if not os.path.exists(dir_proscript):
+	#	os.makedirs(dir_proscript)
+	#word_data_to_pickle(talk_data, os.path.join(dir_proscript, "%s.pcl"%options.id_file))
+	#word_data_to_csv(talk_data, os.path.join(dir_proscript, "%s.csv"%options.id_file))
 	return 1
 
 if __name__ == "__main__":

@@ -20,9 +20,4 @@ cd lib/laic
 ./extract-prosodic-feats.sh $wavfile $alignfile $output_dir
 cd $curr_dir
 
-#Convert aggs features into Proscript format
-f0_aggs_file="$output_dir/$file_id/f0/`ls $output_dir/$file_id/f0 | grep aggs`"
-i0_aggs_file="$output_dir/$file_id/i0/`ls $output_dir/$file_id/i0 | grep aggs`"
-python src/proscripter.py -l $alignfile -f $f0_aggs_file -i $i0_aggs_file -o $output_dir/$file_id/$file_id.pcl -c $output_dir/$file_id/$file_id.csv
-
-
+python src/proscripter.py -d $output_dir/$file_id -l $alignfile -i $file_id
