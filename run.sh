@@ -20,4 +20,4 @@ cd lib/laic
 ./extract-prosodic-feats.sh $wavfile $alignfile $output_dir
 cd $curr_dir
 
-python src/proscripter_v2.py -d $output_dir/$file_id -l $alignfile -i $file_id
+python src/proscripter.py -d $output_dir/$file_id -l $alignfile -i $file_id
