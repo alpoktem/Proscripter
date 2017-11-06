@@ -55,21 +55,50 @@ class Word:
 		self.end_time = -1.0
 		self.start_time = -1.0
 
+	def convert_value_to_level(value, bins):
+		level = 0
+		for bin_no, bin_upper_limit in enumerate(bins):
+			if value > bin_upper_limit:
+				level += 1
+			else:
+				break
+		return level
+
+	def get_value_in_level(self, property_name, bins):
+		level = getattr(self, property_name)
+		return convert_value_to_level(level, bins)
+
+	def get_value(self, property_name):
+		value = getattr(self, property_name)
+		return value
+
 class Proscript:
-    def __init__(self):
-    	self.wordlist = []
+	def __init__(self):
+		self.word_list = []
 
-    def addWord(self, word):
-    	self.wordlist.append(word)
+	def add_word(self, word):
+		self.word_list.append(word)
 
-    def getLastWord(self):
-    	if self.getLength() > 0:
-    		return self.wordlist[-1]
-    	else:
-    		return None
+	def get_last_word(self):
+		if self.get_length() > 0:
+			return self.word_list[-1]
+		else:
+			return None
 
-    def getLength(self):
-    	return len(self.wordlist)
+	def get_length(self):
+		return len(self.word_list)
+
+	def get_sequence(self, property_name):
+		sequence = []
+		for word in self.word_list:
+			sequence.append(word.get_value(property_name))
+		return sequence
+
+	def get_leveled_sequence(self, property_name, bins):
+		sequence = []
+		for word in self.word_list:
+			sequence.append(word.get_value_in_level(property_name, bins))
+		return sequence
 
 def puncProper(punc):
 	if punc in INV_PUNCTUATION_CODES.keys():
@@ -215,9 +244,6 @@ def structureData(word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_d
 	for word_id, word_data in word_data_aligned_dic.items():
 		word = Word()
 
-		print(word_id)
-		print(word_data)
-
 		if not word_data[0] == "NA": 
 			word.start_time = float(word_data[0])
 		if not word_data[1] == "NA": 
@@ -232,8 +258,8 @@ def structureData(word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_d
 		word.word = word_stripped
 
 		#pause values
-		if not word.start_time == -1 and not proscript.getLastWord() == None and not proscript.getLastWord().end_time == -1:
-			diff = word.start_time - proscript.getLastWord().end_time
+		if not word.start_time == -1 and not proscript.get_last_word() == None and not proscript.get_last_word().end_time == -1:
+			diff = word.start_time - proscript.get_last_word().end_time
 		else: 
 			diff = 0.0
 		word.pause_before = float(FLOAT_FORMATTING.format(diff))
@@ -270,14 +296,20 @@ def structureData(word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_d
 		
 		#punctuation
 		#...
-		proscript.addWord(word)
+		proscript.add_word(word)
 	
 	return proscript
 
+#OBSOLETE
 def word_data_to_pickle(talk_data, output_pickle_file):
 	with open(output_pickle_file, 'wb') as f:
 		cPickle.dump(talk_data, f, cPickle.HIGHEST_PROTOCOL)
 
+def proscript_to_pickle(proscript, output_pickle_file):
+	with open(output_pickle_file, 'wb') as f:
+		cPickle.dump(proscript, f, cPickle.HIGHEST_PROTOCOL)
+
+#OBSOLETE
 def word_data_to_csv(talk_data, output_csv_file):
 	with open(output_csv_file, 'wb') as f:
 		w = csv.writer(f, delimiter="\t")
@@ -441,13 +473,18 @@ def main(options):
 	[word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_data_aligned_dic, word_id_to_raw_f0_features_dic, word_id_to_raw_i0_features_dic] = readTedDataToMemory(options.file_wordalign, file_wordaggs_f0, file_wordaggs_i0, dir_raw_f0, dir_raw_i0)
 	proscript = structureData(word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_data_aligned_dic, word_id_to_raw_f0_features_dic, word_id_to_raw_i0_features_dic)
 
-	#talk_data = wordDataToDictionary(structured_word_data, avg_speech_rate)
+	dir_proscript = os.path.join(options.dir_working, "proscript")
+	if not os.path.exists(dir_proscript):
+		os.makedirs(dir_proscript)
 
-	#dir_proscript = os.path.join(options.dir_working, "proscript")
-	#if not os.path.exists(dir_proscript):
-	#	os.makedirs(dir_proscript)
-	#word_data_to_pickle(talk_data, os.path.join(dir_proscript, "%s.pcl"%options.id_file))
-	#word_data_to_csv(talk_data, os.path.join(dir_proscript, "%s.csv"%options.id_file))
+	if options.id_file:
+		proscript_filename = "%s.proscript.pcl"%options.id_file
+	else:
+		proscript_filename = "proscript.pcl"
+	proscript_filename = os.path.join(dir_proscript, proscript_filename)
+
+	proscript_to_pickle(proscript, proscript_filename)
+
 	return 1
 
 if __name__ == "__main__":
@@ -456,7 +493,7 @@ if __name__ == "__main__":
 	#parser.add_option("-a", "--audio", dest="file_audio", default=None, help="wav", type="string")
 	parser.add_option("-l", "--align", dest="file_wordalign", default=None, help="word.txt.norm.align", type="string")	#in /txt-sent
 	parser.add_option("-d", "--dir_working", dest="dir_working", default=None, help="Working directory where prosodic parameters and output is stored", type="string")
-	parser.add_option("-i", "--id", dest="id_file", default="proscript", help="file id", type="string")	#in /txt-sent
+	parser.add_option("-i", "--id", dest="id_file", default="proscript", help="optional file id", type="string")
 
 	(options, args) = parser.parse_args()
 
