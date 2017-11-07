@@ -53,19 +53,6 @@ class Word:
 		self.end_time = -1.0
 		self.start_time = -1.0
 
-	def convert_value_to_level(value, bins):
-		level = 0
-		for bin_no, bin_upper_limit in enumerate(bins):
-			if value > bin_upper_limit:
-				level += 1
-			else:
-				break
-		return level
-
-	def get_value_in_level(self, property_name, bins):
-		level = getattr(self, property_name)
-		return convert_value_to_level(level, bins)
-
 	def get_value(self, property_name):
 		value = getattr(self, property_name)
 		return value
@@ -149,7 +136,6 @@ def puncEstimate(punc):
 #--^^^--Punctuation helper functions--^^^--
 
 def readTedDataToMemory(file_wordalign, file_wordaggs_f0, file_wordaggs_i0, dir_raw_f0=None, dir_raw_i0=None):
-
 	#read wordaggs_f0 file to a dictionary 
 	word_id_to_f0_features_dic = {}
 	at_header_line = 1
@@ -308,34 +294,6 @@ def featureVectorToFloat(featureVector):
 			features_fixed[ind] = float(FLOAT_FORMATTING.format(float(val)))
 	return features_fixed
 
-#--vvv--vocabularization stuff--vvv--
-def convert_value_to_level(pause_dur, pause_bins):
-	level = 0
-	for bin_no, bin_upper_limit in enumerate(pause_bins):
-		if pause_dur > bin_upper_limit:
-			level += 1
-		else:
-			break
-	return level
-
-def create_pause_bins():
-	bins = np.arange(0, 1, 0.05)
-	bins = np.concatenate((bins, np.arange(1, 2, 0.1)))
-	bins = np.concatenate((bins, np.arange(2, 5, 0.2)))
-	bins = np.concatenate((bins, np.arange(5, 10, 0.5)))
-	bins = np.concatenate((bins, np.arange(10, 20, 1)))
-	return bins
-
-def create_semitone_bins():
-	bins = np.arange(-20, -10, 1)
-	bins = np.concatenate((bins, np.arange(-10, -5, 0.5)))
-	bins = np.concatenate((bins, np.arange(-5, 0, 0.25)))
-	bins = np.concatenate((bins, np.arange(0, 5, 0.25)))
-	bins = np.concatenate((bins, np.arange(5, 10, 0.5)))
-	bins = np.concatenate((bins, np.arange(10, 20, 1)))
-	return bins
-#--^^^--vocabularization stuff--^^^--
-
 #--vvv--File access helper functions--vvv--
 def findAggsFile(working_directory, feat):
 	feat_dir = os.path.join(working_directory, feat)
@@ -385,8 +343,8 @@ def main(options):
 
 	if options.feature_set:
 		proscript.to_csv(lite_proscript_filename, ["word"] + options.feature_set)
-	else:
-		proscript.to_csv(full_proscript_filename)
+	
+	proscript.to_csv(full_proscript_filename)
 	
 	return 1
 
