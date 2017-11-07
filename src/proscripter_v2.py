@@ -12,9 +12,6 @@ import numpy as np
 
 csv.field_size_limit(1000000000000) 
 
-features_f0_header = 'mean.normF0\tsd.normF0\tmax.normF0\tmin.normF0\tmedian.normF0\tq1.normF0\tq2.5.normF0\tq5.normF0\tq25.normF0\tq75.normF0\tq95.normF0\tq97.5.normF0\tq99.normF0\tslope.normF0\tintercept.normF0\tmean.normF0.slope\tsd.normF0.slope\tmax.normF0.slope\tmin.normF0.slope\tmedian.normF0.slope\tq1.normF0.slope\tq2.5.normF0.slope\tq5.normF0.slope\tq25.normF0.slope\tq75.normF0.slope\tq95.normF0.slope\tq97.5.normF0.slope\tq99.normF0.slope\tslope.normF0.slope\tintercept.normF0.slope'
-features_i0_header = 'mean.normI0\tsd.normI0\tmax.normI0\tmin.normI0\tmedian.normI0\tq1.normI0\tq2.5.normI0\tq5.normI0\tq25.normI0\tq75.normI0\tq95.normI0\tq97.5.normI0\tq99.normI0\tslope.normI0\tintercept.normI0\tmean.normI0.slope\tsd.normI0.slope\tmax.normI0.slope\tmin.normI0.slope\tmedian.normI0.slope\tq1.normI0.slope\tq2.5.normI0.slope\tq5.normI0.slope\tq25.normI0.slope\tq75.normI0.slope\tq95.normI0.slope\tq97.5.normI0.slope\tq99.normI0.slope\tslope.normI0.slope\tintercept.normI0.slope'
-
 SPACE = "_"
 PUNCTUATION_VOCABULARY = {0:SPACE, 1:',', 2:'.', 3:'?', 4:'!', 5:'-', 6:';', 7:':'}
 INV_PUNCTUATION_CODES = {SPACE:0, ',':1, '.':2, '?':3, '!':4, '-':5, ';':6, ':':7, '':0}
@@ -36,7 +33,8 @@ class Word:
 		self.speech_rate_normalized = -1
 		self.f0_contour = -1
 		self.i0_contour = -1
-		self.contour_xaxis = -1 
+		self.f0_contour_xaxis = -1 
+		self.i0_contour_xaxis = -1 
 		self.f0_mean = -1.0
 		self.i0_mean = -1.0
 		self.f0_slope = -1.0
@@ -75,6 +73,7 @@ class Word:
 class Proscript:
 	def __init__(self):
 		self.word_list = []
+		self.feature_set = ["word", "start_time", "end_time", "duration", "pause_before", "speech_rate_phon", "f0_mean", "i0_mean", "f0_slope", "i0_slope", "f0_sd", "i0_sd", "f0_range", "i0_range", "f0_contour_xaxis", "f0_contour", "i0_contour_xaxis", "i0_contour"]
 
 	def add_word(self, word):
 		self.word_list.append(word)
@@ -100,6 +99,19 @@ class Proscript:
 			sequence.append(word.get_value_in_level(property_name, bins))
 		return sequence
 
+	def to_csv(self, csv_filename, feature_set=None):
+		if not feature_set:
+			feature_set = self.feature_set
+		with open(csv_filename, 'wb') as f:
+			w = csv.writer(f, delimiter="\t")
+			rowIds = feature_set
+			w.writerow(rowIds)
+
+			for word in self.word_list:
+				row = [word.get_value(feature_id) for feature_id in feature_set]                                     
+				w.writerow(row) 
+
+#--vvv--Punctuation helper functions--vvv--
 def puncProper(punc):
 	if punc in INV_PUNCTUATION_CODES.keys():
 		return punc
@@ -134,17 +146,7 @@ def puncEstimate(punc):
 		return '-'
 	else:
 		return ''
-
-def checkFile(filename, variable):
-    if not filename:
-        sys.exit("%s file not given"%variable)
-    else:
-        if not os.path.isfile(filename):
-            sys.exit("%s file %s does not exist"%(variable, filename))
-
-def checkFolder(dir, variable):
-	if not os.path.exists(dir):
-		sys.exit("%s directory not given"%variable)
+#--^^^--Punctuation helper functions--^^^--
 
 def readTedDataToMemory(file_wordalign, file_wordaggs_f0, file_wordaggs_i0, dir_raw_f0=None, dir_raw_i0=None):
 
@@ -225,17 +227,9 @@ def readTedDataToMemory(file_wordalign, file_wordaggs_f0, file_wordaggs_i0, dir_
 
 	return [word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_data_aligned_dic, word_id_to_raw_f0_features_dic, word_id_to_raw_i0_features_dic]
 
-def featureVectorToFloat(featureVector):
-	features_fixed = [0.0] * len(featureVector)
-	for ind, val in enumerate(featureVector):
-		if val == 'NA':
-			features_fixed[ind] = 0.0
-		else:
-			features_fixed[ind] = float(FLOAT_FORMATTING.format(float(val)))
-	return features_fixed
-
 def structureData(word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_data_aligned_dic, word_id_to_raw_f0_features_dic=None, word_id_to_raw_i0_features_dic=None):
 	proscript = Proscript()
+	
 	sum_speech_rate_phon = 0.0
 	sum_speech_rate_syll = 0.0
 	count_speech_rate_syll = 0
@@ -263,6 +257,7 @@ def structureData(word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_d
 		else: 
 			diff = 0.0
 		word.pause_before = float(FLOAT_FORMATTING.format(diff))
+		if not proscript.get_last_word() == None: proscript.get_last_word().pause_after = word.pause_before 
 
 		#word duration
 		if not word.start_time == -1 and not word.end_time == -1:
@@ -291,42 +286,29 @@ def structureData(word_id_to_f0_features_dic, word_id_to_i0_features_dic, word_d
 		word.i0_range = float(word_id_to_i0_features_dic[word_id][2]) - float(word_id_to_i0_features_dic[word_id][3])
 
 		#contours
-		word.f0_contour = word_id_to_raw_f0_features_dic[word_id]
-		word.i0_contour = word_id_to_raw_i0_features_dic[word_id]
+		f0_contour = np.array(word_id_to_raw_f0_features_dic[word_id])  #this is two dimensional
+		i0_contour = np.array(word_id_to_raw_i0_features_dic[word_id])  #this is two dimensional
 		
+		word.contour_xaxis = f0_contour[:,0].tolist() if f0_contour.size else []
+		word.f0_contour = f0_contour[:,1].tolist() if f0_contour.size else []
+		word.i0_contour = i0_contour[:,1].tolist() if i0_contour.size else []
+
 		#punctuation
 		#...
 		proscript.add_word(word)
 	
 	return proscript
 
-#OBSOLETE
-def word_data_to_pickle(talk_data, output_pickle_file):
-	with open(output_pickle_file, 'wb') as f:
-		cPickle.dump(talk_data, f, cPickle.HIGHEST_PROTOCOL)
+def featureVectorToFloat(featureVector):
+	features_fixed = [0.0] * len(featureVector)
+	for ind, val in enumerate(featureVector):
+		if val == 'NA':
+			features_fixed[ind] = 0.0
+		else:
+			features_fixed[ind] = float(FLOAT_FORMATTING.format(float(val)))
+	return features_fixed
 
-def proscript_to_pickle(proscript, output_pickle_file):
-	with open(output_pickle_file, 'wb') as f:
-		cPickle.dump(proscript, f, cPickle.HIGHEST_PROTOCOL)
-
-#OBSOLETE
-def word_data_to_csv(talk_data, output_csv_file):
-	with open(output_csv_file, 'wb') as f:
-		w = csv.writer(f, delimiter="\t")
-		rowIds = ['word', 'punctuation', 'word.duration', 'speech.rate.norm', 'pause', 'mean.f0', 'range.f0', 'mean.i0', 'range.i0']
-		w.writerow(rowIds)
-		rows = zip( talk_data[rowIds[0]],
-					talk_data[rowIds[1]],
-					talk_data[rowIds[2]],
-					talk_data[rowIds[3]],
-					talk_data[rowIds[4]],
-					talk_data[rowIds[5]],
-					talk_data[rowIds[6]],
-					talk_data[rowIds[7]],
-					talk_data[rowIds[8]])
-		for row in rows:                                        
-			w.writerow(row) 
-
+#--vvv--vocabularization stuff--vvv--
 def convert_value_to_level(pause_dur, pause_bins):
 	level = 0
 	for bin_no, bin_upper_limit in enumerate(pause_bins):
@@ -352,106 +334,9 @@ def create_semitone_bins():
 	bins = np.concatenate((bins, np.arange(5, 10, 0.5)))
 	bins = np.concatenate((bins, np.arange(10, 20, 1)))
 	return bins
+#--^^^--vocabularization stuff--^^^--
 
-def wordDataToDictionary(structured_word_data, avg_speech_rate):
-	actualword_seq = []
-	#speech_rate_syll_seq = []
-	speech_rate_phon_seq = []
-	speech_rate_normalized_seq = []
-	word_dur_seq = []
-	punc_seq = []
-	punc_reduced_seq = []
-	pause_before_seq = []
-	meanf0_seq = []
-	medf0_seq = []
-	meani0_seq = []
-	slopef0_seq = []
-	sdf0_seq = []
-	jumpf0_seq = []
-	jumpi0_seq = []
-	rangef0_seq = []
-	rangei0_seq = []
-	#id sequences
-	meanf0_id_seq = []
-	meani0_id_seq = []
-	rangef0_id_seq = []
-	rangei0_id_seq = []
-	pause_id_seq = []
-	punctuation_id_seq = []
-	reduced_punctuation_id_seq = []
-
-	pause_bins = create_pause_bins()
-	semitone_bins = create_semitone_bins()
-
-	for word_datum in structured_word_data:
-		actualword_seq += [word_datum['word']]
-		word_dur_seq += [word_datum['word_dur']]
-		punc_seq += [word_datum['minimal_punc_before']]
-		punc_reduced_seq += [reducePunc(word_datum['minimal_punc_before'])]
-		pause_before_seq += [word_datum['pause_before_dur']]
-		meanf0_seq += [word_datum['features_f0'][0]]
-		meani0_seq += [word_datum['features_i0'][0]]
-		sdf0_seq += [word_datum['features_f0'][1]]
-		medf0_seq += [word_datum['features_f0'][4]]
-		slopef0_seq += [word_datum['features_f0'][14]]
-		jumpf0_seq += [word_datum['mean.f0_jump_from_prev']]
-		jumpi0_seq += [word_datum['mean.i0_jump_from_prev']]
-		rangef0_seq += [word_datum['range.f0']]
-		rangei0_seq += [word_datum['range.i0']]
-		#id sequences
-		meanf0_id_seq += [convert_value_to_level(word_datum['features_f0'][0], semitone_bins)]
-		meani0_id_seq += [convert_value_to_level(word_datum['features_i0'][0], semitone_bins)]
-		rangef0_id_seq += [convert_value_to_level(word_datum['range.f0'], semitone_bins)]
-		rangei0_id_seq += [convert_value_to_level(word_datum['range.i0'], semitone_bins)]
-		pause_id_seq += [convert_value_to_level(word_datum['pause_before_dur'], pause_bins)]
-		#punctuation
-		punctuation_id = INV_PUNCTUATION_CODES[word_datum['minimal_punc_before']]
-		punctuation_id_seq += [punctuation_id]
-		reduced_punctuation_id_seq += [reducePuncCode(punctuation_id)]
-		#speech rate
-		#speech_rate_syll_seq += [word_datum['speech.rate.syll']]
-		speech_rate_phon_seq += [word_datum['speech.rate.phon']]
-		normalized_speech_rate = (word_datum['speech.rate.phon'] / avg_speech_rate)
-		if not normalized_speech_rate == 0.0:
-			speech_rate_normalized_seq += [float(FLOAT_FORMATTING.format(normalized_speech_rate))]
-		else:
-			speech_rate_normalized_seq += [1.0]
-
-
-	metadata = {'no_of_semitone_levels': len(semitone_bins),
-				'no_of_pause_levels': len(pause_bins),
-				'no_of_words': len(actualword_seq),
-				'avg_speech_rate': avg_speech_rate
-	}
-
-	talk_data = {  'word': actualword_seq,
-				   'word.duration': word_dur_seq ,
-				   #'speech.rate.syll' : speech_rate_syll_seq,
-				   'speech.rate.phon': speech_rate_phon_seq,
-				   'speech.rate.norm': speech_rate_normalized_seq ,
-				   'punctuation': punc_seq,
-				   'punctuation.reduced': punc_reduced_seq,
-				   'pause': pause_before_seq,
-				   'pause.id': pause_id_seq,
-				   'mean.f0': meanf0_seq,
-				   'mean.i0': meani0_seq,
-				   'med.f0': medf0_seq,
-				   'slope.f0': slopef0_seq,
-				   'sd.f0': sdf0_seq,
-				   'jump.f0': jumpf0_seq,
-				   'jump.i0': jumpi0_seq ,
-				   'range.f0': rangef0_seq,
-				   'range.i0': rangei0_seq ,
-				   'mean.f0.id': meanf0_id_seq,
-				   'mean.i0.id': meani0_id_seq,
-				   'range.f0.id': rangef0_id_seq,
-				   'range.i0.id': rangei0_id_seq,
-				   'punc.id': punctuation_id_seq,
-				   'punc.red.id': reduced_punctuation_id_seq,
-				   'metadata': metadata
-	}
-	return talk_data
-
+#--vvv--File access helper functions--vvv--
 def findAggsFile(working_directory, feat):
 	feat_dir = os.path.join(working_directory, feat)
 	if os.path.exists(feat_dir):
@@ -459,6 +344,18 @@ def findAggsFile(working_directory, feat):
 			if file.endswith("aggs.txt"):
 				return os.path.join(working_directory, feat, file)
 	sys.exit("Cannot find %s aggs file"%feat)
+
+def checkFile(filename, variable):
+    if not filename:
+        sys.exit("%s file not given"%variable)
+    else:
+        if not os.path.isfile(filename):
+            sys.exit("%s file %s does not exist"%(variable, filename))
+
+def checkFolder(dir, variable):
+	if not os.path.exists(dir):
+		sys.exit("%s directory not given"%variable)
+#--^^^--File access helper functions--^^^--
 
 def main(options):
 	checkFolder(options.dir_working, "dir_working")
@@ -478,22 +375,28 @@ def main(options):
 		os.makedirs(dir_proscript)
 
 	if options.id_file:
-		proscript_filename = "%s.proscript.pcl"%options.id_file
+		full_proscript_filename = "%s.proscript.csv"%options.id_file
+		lite_proscript_filename = "%s.litescript.csv"%options.id_file
 	else:
-		proscript_filename = "proscript.pcl"
-	proscript_filename = os.path.join(dir_proscript, proscript_filename)
+		full_proscript_filename = "proscript.csv"
+		lite_proscript_filename = "litescript.csv"
+	full_proscript_filename = os.path.join(dir_proscript, full_proscript_filename)
+	lite_proscript_filename = os.path.join(dir_proscript, lite_proscript_filename)
 
-	proscript_to_pickle(proscript, proscript_filename)
-
+	if options.feature_set:
+		proscript.to_csv(lite_proscript_filename, ["word"] + options.feature_set)
+	else:
+		proscript.to_csv(full_proscript_filename)
+	
 	return 1
 
 if __name__ == "__main__":
 	usage = "usage: %prog [-s infile] [option]"
 	parser = OptionParser(usage=usage)
-	#parser.add_option("-a", "--audio", dest="file_audio", default=None, help="wav", type="string")
 	parser.add_option("-l", "--align", dest="file_wordalign", default=None, help="word.txt.norm.align", type="string")	#in /txt-sent
 	parser.add_option("-d", "--dir_working", dest="dir_working", default=None, help="Working directory where prosodic parameters and output is stored", type="string")
 	parser.add_option("-i", "--id", dest="id_file", default="proscript", help="optional file id", type="string")
+	parser.add_option("-f", "--feature_set", dest="feature_set", help="feature set to extract in output proscript file", default=[], type="string", action='append')
 
 	(options, args) = parser.parse_args()
 

@@ -1,3 +1,6 @@
+#Processes a wav and alignment file pair
+PROSCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 get_abs_filename() {
   # $1 : relative filename
   echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
@@ -16,8 +19,8 @@ then
       echo "Creating output directory"
 fi
 
-cd lib/laic
+cd $PROSCRIPT_DIR/lib/laic
 ./extract-prosodic-feats.sh $wavfile $alignfile $output_dir
 cd $curr_dir
 
-python src/proscripter.py -d $output_dir/$file_id -l $alignfile -i $file_id
+python $PROSCRIPT_DIR/src/proscripter_v2.py -d $output_dir/$file_id -l $alignfile -i $file_id #-f pause_before -f f0_mean

@@ -34,3 +34,6 @@ where `<prosodic-feats-directory>` is the output directory of the previous call.
 
 Both processes are combined in `run.sh`:
 `./run.sh <wav-file> <alignment-file> <output-directory>`
+
+For batch processing, prepare a text file with a list of audio/alignment pairs seperated by tab and run:
+`./run_batch.sh <file-pair-list> <output-directory>`
